@@ -34,13 +34,6 @@ python3 -m http.server 8000
 # then open http://localhost:8000
 ```
 
-## Publish with GitHub Pages
-
-1. Push this repository to GitHub.
-2. In the repo: **Settings → Pages → Source**, choose **Deploy from a branch**,
-   select `main` and `/ (root)`, and save.
-3. The page appears at `https://<username>.github.io/<repo>/`.
-
 ## Implementation notes
 
 - One HTML file: all CSS and JavaScript inline, no external requests of any kind.
