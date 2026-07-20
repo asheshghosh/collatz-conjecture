@@ -58,4 +58,3 @@ python3 -m http.server 8000
 
 - Coral rendering idea after Edmund Harriss's Collatz visualisations.
 - Verification bound from David Barína's 2⁷¹ computational project.
-- Built with [Claude Code](https://claude.com/claude-code).
