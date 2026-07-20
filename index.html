@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An interactive visual essay on the Collatz conjecture: a generative coral grown from 1,300 orbits, a hailstone trajectory explorer, and a 10,000-point stopping-time scatter. No dependencies, computed live.">
+<meta name="theme-color" content="#0A0E1C">
+<meta charset="utf-8">
+<title>The Collatz Conjecture</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0A0E1C;
+    --bg-deep: #060912;
+    --surface: #121936;
+    --line: #232C4E;
+    --ink: #EAEDF7;
+    --ink-2: #A9B1C9;
+    --muted: #6B7490;
+    --gold: #C08425;
+    --teal: #23A18F;
+    --rose: #D4555C;
+    --violet: #8574F0;
+    --glow-gold: #EFB65B;
+    --glow-rose: #EF7B72;
+    --glow-violet: #9D8CFF;
+    --serif: "Iowan Old Style", Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Code", Consolas, monospace;
+  }
+
+  * { margin: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: rgba(239, 182, 91, 0.25); }
+
+  a { color: var(--glow-gold); text-decoration: none; border-bottom: 1px solid rgba(239,182,91,.35); }
+  a:hover { border-bottom-color: var(--glow-gold); }
+
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--glow-gold); outline-offset: 2px; border-radius: 2px; }
+
+  /* ── hero ─────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    height: 100vh;
+    height: 100svh;
+    min-height: 540px;
+    overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 30%, #0D1328 0%, var(--bg-deep) 100%);
+  }
+  .hero canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .hero-scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(6,9,18,0.95) 0%, rgba(6,9,18,0.55) 26%, transparent 52%);
+    pointer-events: none;
+  }
+  .hero-copy {
+    position: absolute;
+    left: clamp(1.25rem, 6vw, 5rem);
+    right: clamp(1.25rem, 6vw, 5rem);
+    bottom: clamp(1.5rem, 6vh, 4rem);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem 3rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--glow-gold);
+  }
+  .hero h1 {
+    font-size: clamp(2.5rem, 6.5vw, 4.5rem);
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin-top: 0.5rem;
+    text-shadow: 0 2px 30px rgba(6,9,18,0.9);
+  }
+  .hero-sub {
+    max-width: 34rem;
+    margin-top: 1rem;
+    color: var(--ink-2);
+    font-size: 1.02rem;
+    text-shadow: 0 1px 18px rgba(6,9,18,0.9);
+  }
+  .hero-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .hero-controls label { display: flex; align-items: center; gap: 0.55rem; }
+  .hero-controls input[type="range"] {
+    width: 130px;
+    accent-color: var(--glow-gold);
+    background: transparent;
+  }
+  .btn {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    background: rgba(18, 25, 54, 0.65);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn:hover { border-color: var(--glow-gold); color: var(--ink); }
+
+  /* ── article flow ─────────────────────────────────── */
+  .flow {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+  }
+  section { padding: clamp(3.5rem, 9vh, 6rem) 0 0; }
+  section:last-of-type { padding-bottom: clamp(3.5rem, 9vh, 6rem); }
+
+  h2 {
+    font-size: clamp(1.6rem, 3.4vw, 2.1rem);
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0.6rem 0 1.1rem;
+  }
+  p { color: var(--ink-2); margin-bottom: 1rem; max-width: 66ch; }
+  p strong { color: var(--ink); font-weight: 600; }
+  em.num { font-style: normal; font-family: var(--mono); font-size: 0.92em; color: var(--ink); }
+
+  .rule-card {
+    margin: 1.8rem 0;
+    padding: 1.6rem 1.8rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 1.4rem;
+    flex-wrap: wrap;
+  }
+  .rule-fn { font-size: 1.5rem; font-style: italic; white-space: nowrap; }
+  .rule-cases { display: grid; gap: 0.35rem; font-size: 1.12rem; }
+  .rule-cases .case { display: flex; gap: 1.1rem; align-items: baseline; }
+  .rule-cases .expr { font-style: italic; min-width: 6.5ch; }
+  .rule-cases .cond { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); letter-spacing: 0.05em; }
+  .rule-brace { font-size: 3.2rem; font-weight: 200; color: var(--muted); line-height: 1; }
+
+  /* ── panels (charts) ──────────────────────────────── */
+  .panel-wrap {
+    max-width: 62rem;
+    margin: 1.8rem auto 0;
+    padding: 0 1.25rem;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 1.4rem 1.5rem 1.2rem;
+  }
+  .panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .panel-title { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); }
+  .panel-note { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+  /* explorer controls */
+  .explorer-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 1.1rem;
+  }
+  .seed-input {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--ink);
+    padding: 0.5rem 0.8rem;
+    width: 15ch;
+    font-variant-numeric: tabular-nums;
+  }
+  .seed-input:focus { border-color: var(--gold); outline: none; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    color: var(--ink-2);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .chip:hover { border-color: var(--glow-gold); color: var(--ink); }
+  .chip[aria-pressed="true"] { border-color: var(--gold); color: var(--glow-gold); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1.1rem;
+  }
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.7rem 0.9rem;
+  }
+  .stat .v {
+    font-family: var(--mono);
+    font-size: clamp(1.05rem, 2.4vw, 1.45rem);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    display: block;
+    overflow-wrap: anywhere;
+  }
+  .stat .k {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 0.2rem;
+    display: block;
+  }
+
+  .chart-box { position: relative; }
+  .chart-box svg { display: block; width: 100%; height: auto; }
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.35rem 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink);
+    white-space: nowrap;
+    transform: translate(-50%, calc(-100% - 10px));
+    opacity: 0;
+    transition: opacity 0.12s;
+    font-variant-numeric: tabular-nums;
+    z-index: 3;
+  }
+  .tooltip .dim { color: var(--muted); }
+
+  details.seq {
+    margin-top: 1rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.8rem;
+  }
+  details.seq summary {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  details.seq summary:hover { color: var(--ink-2); }
+  .seq-list {
+    margin-top: 0.7rem;
+    max-height: 10.5rem;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.9;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .seq-list .odd-v { color: var(--glow-gold); }
+
+  /* scatter */
+  .scatter-box { position: relative; }
+  .scatter-box canvas { display: block; width: 100%; }
+
+  .records {
+    margin-top: 1.1rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.9rem;
+  }
+  .records-title { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; }
+  .records table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .records th {
+    text-align: right;
+    font-weight: 400;
+    color: var(--muted);
+    padding: 0.15rem 0.9rem 0.35rem 0;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.64rem;
+  }
+  .records td { text-align: right; color: var(--ink-2); padding: 0.15rem 0.9rem 0.15rem 0; }
+  .records td:first-child, .records th:first-child { color: var(--ink); }
+  .records-scroll { overflow-x: auto; }
+
+  /* coda */
+  .quote {
+    margin: 2rem 0;
+    padding-left: 1.4rem;
+    border-left: 2px solid var(--gold);
+    font-style: italic;
+    font-size: 1.25rem;
+    line-height: 1.5;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .quote-attr { display: block; margin-top: 0.5rem; font-style: normal; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+  footer {
+    border-top: 1px solid var(--line);
+    margin-top: clamp(3rem, 8vh, 5rem);
+    padding: 1.6rem 1.25rem 2.2rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.05em;
+    line-height: 2;
+  }
+
+  /* reveal */
+  .reveal { opacity: 0; transform: translateY(10px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+  }
+
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+    .rule-fn { font-size: 1.25rem; }
+    .hero-controls { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero" id="hero">
+  <canvas id="coral" role="img" aria-label="Generative drawing: thousands of Collatz trajectories rendered as glowing filaments that curl into a coral-like form"></canvas>
+  <div class="hero-scrim"></div>
+  <div class="hero-copy">
+    <div>
+      <div class="eyebrow">Hailstone numbers &middot; 3n + 1</div>
+      <h1>The Collatz<br>Conjecture</h1>
+      <p class="hero-sub">Take any whole number. Halve it if it is even; triple it and add one if it is odd. Repeat. Every number ever tried has fallen to 1 — and after nearly a century, no one can prove they all must.</p>
+    </div>
+    <div class="hero-controls">
+      <label for="bend">bend
+        <input type="range" id="bend" min="0.07" max="0.24" step="0.005" value="0.155">
+      </label>
+      <button class="btn" id="regrow">Regrow</button>
+    </div>
+  </div>
+</div>
+
+<div class="flow">
+  <section class="reveal" id="rule">
+    <div class="eyebrow">The rule</div>
+    <h2>One line, unanswered since 1937</h2>
+    <div class="rule-card">
+      <span class="rule-fn">T(n)&thinsp;=</span>
+      <span class="rule-brace">{</span>
+      <div class="rule-cases">
+        <div class="case"><span class="expr">n / 2</span><span class="cond">if n is even</span></div>
+        <div class="case"><span class="expr">3n + 1</span><span class="cond">if n is odd</span></div>
+      </div>
+    </div>
+    <p>Lothar Collatz posed it in 1937: apply <strong>T</strong> over and over, starting anywhere, and you will always reach 1. The orbit of 7 runs <em class="num">7&nbsp;22&nbsp;11&nbsp;34&nbsp;17&nbsp;52&nbsp;26&nbsp;13&nbsp;40&nbsp;20&nbsp;10&nbsp;5&nbsp;16&nbsp;8&nbsp;4&nbsp;2&nbsp;1</em> — sixteen steps, done. These paths rise and plunge so erratically that mathematicians call them <strong>hailstone numbers</strong>, after the way hail rides updrafts before it finally falls.</p>
+    <p>The claim is either true for all infinitely many starting values, or false for at least one. Nobody knows which. Proving it has resisted every serious tool in number theory.</p>
+  </section>
+
+  <section class="reveal" id="coral-note">
+    <div class="eyebrow">The drawing above</div>
+    <h2>Thirteen hundred journeys, grown like coral</h2>
+    <p>Each glowing filament overhead is one number&rsquo;s complete journey to 1, drawn in reverse — from the root outward. At every step the line bends one way for an even number and the other way for an odd one, an idea from mathematician Edmund Harriss. Nothing organic was simulated: over a thousand orbits, superimposed, produce those fronds on their own. The white-hot spine is where every path crowds through the same final descent; the violet tips are each number setting out alone.</p>
+    <p>That a bare arithmetic rule yields something this ordered — every branch curling the same way, none escaping — is the conjecture made visible. Try the <strong>bend</strong> slider or regrow it; the anatomy survives any angle.</p>
+  </section>
+
+  <section class="reveal" id="explorer-intro">
+    <div class="eyebrow">One number at a time</div>
+    <h2>The flight of a hailstone</h2>
+    <p>Pick a starting number and watch its orbit. The innocent-looking <em class="num">27</em> climbs for 111 steps and touches <em class="num">9,232</em> before it collapses. The vertical scale below is logarithmic — those spikes are an order of magnitude tall.</p>
+  </section>
+</div>
+
+<div class="panel-wrap reveal">
+  <div class="panel" id="explorer">
+    <div class="panel-head">
+      <span class="panel-title">Hailstone trajectory</span>
+      <span class="panel-note">log scale &middot; hover to trace</span>
+    </div>
+    <div class="explorer-controls">
+      <input class="seed-input" id="seed" inputmode="numeric" autocomplete="off" spellcheck="false" value="27" aria-label="Starting number">
+      <button class="chip" data-seed="27">27</button>
+      <button class="chip" data-seed="97">97</button>
+      <button class="chip" data-seed="6171">6171</button>
+      <button class="chip" data-seed="837799">837799</button>
+      <button class="chip" data-seed="989345275647">989345275647</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="v" id="st-steps">–</span><span class="k">steps to 1</span></div>
+      <div class="stat"><span class="v" id="st-peak">–</span><span class="k">highest point</span></div>
+      <div class="stat"><span class="v" id="st-climbs">–</span><span class="k">odd steps (climbs)</span></div>
+    </div>
+    <div class="chart-box" id="traj-box">
+      <div class="tooltip" id="traj-tip"></div>
+    </div>
+    <details class="seq">
+      <summary>Full sequence</summary>
+      <div class="seq-list" id="seq-list" aria-live="polite"></div>
+    </details>
+  </div>
+</div>
+
+<div class="flow">
+  <section class="reveal" id="scatter-intro">
+    <div class="eyebrow">All numbers at once</div>
+    <h2>Ten thousand fates, banded like starlings</h2>
+    <p>Plot how many steps each of the first 10,000 numbers takes to reach 1 and the chaos organizes itself: trajectories gather into drifting bands, because vast families of numbers merge into shared paths and fall together. The outliers in rose are the <strong>record holders</strong> — each one stubborn beyond every number before it.</p>
+  </section>
+</div>
+
+<div class="panel-wrap reveal">
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">Total stopping time, n = 1 &hellip; 10,000</span>
+      <span class="panel-note">computed live &middot; hover any point</span>
+    </div>
+    <div class="scatter-box" id="scatter-box">
+      <canvas id="scatter"></canvas>
+      <canvas id="scatter-ov" style="position:absolute;inset:0;"></canvas>
+      <div class="tooltip" id="scatter-tip"></div>
+    </div>
+    <div class="records">
+      <div class="records-title">Record climbers below 10,000</div>
+      <div class="records-scroll"><table id="records-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="flow">
+  <section class="reveal" id="coda">
+    <div class="eyebrow">Where it stands</div>
+    <h2>Verified to 2<sup>71</sup>. Proven for none of it.</h2>
+    <p>Computers have checked every starting value below <em class="num">2&#8311;&#185;</em> — that is, below <em class="num">2.36&nbsp;&times;&nbsp;10&sup2;&sup1;</em>, trillions of billions of orbits, all of them falling to 1. In 2019, Terence Tao proved the strongest partial result to date: <strong>almost all</strong> orbits eventually dip nearly as low as their starting point. Almost all. The gap between <em>almost all</em> and <em>all</em> is where the entire problem still lives.</p>
+    <blockquote class="quote">&ldquo;Mathematics may not be ready for such problems.&rdquo;
+      <span class="quote-attr">Paul Erd&#337;s</span>
+    </blockquote>
+    <p>A counterexample would have to either grow forever or close a loop that never touches 1 — and any such loop is known to require billions of terms. Until someone finds one, or proves none exists, the coral keeps growing and every branch keeps coming home.</p>
+  </section>
+</div>
+
+<footer>
+  Every orbit on this page is computed live in your browser.<br>
+  Coral rendering after Edmund Harriss &middot; verification bound: Bar&#237;na, 2^71 project
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var GOLD = "#C08425", ROSE = "#D4555C";
+  var MONO = "11px ui-monospace, 'SF Mono', Menlo, monospace";
+
+  function fmt(x) { return x.toLocaleString("en-US"); }
+  var SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  function sup(k) { return String(k).replace(/\d/g, function (d) { return SUP[d]; }); }
+
+  /* ════════════════════════ 1 · THE CORAL ════════════════════════ */
+  var coral = (function () {
+    var canvas = document.getElementById("coral");
+    var ctx = canvas.getContext("2d");
+    var acc = document.createElement("canvas");
+    var actx = acc.getContext("2d");
+    var soft = document.createElement("canvas");
+    var sctx = soft.getContext("2d");
+
+    var W = 0, H = 0, dpr = 1;
+    var paths = [];      // [{pts:[x0,y0,x1,y1,...], len}]
+    var maxLen = 0;
+    var front = 0, done = false, rafId = 0;
+    var jitterSeed = 7;
+    var bendBase = parseFloat(document.getElementById("bend").value);
+
+    // deterministic per-run randomness so regrow gives a fresh but stable form
+    function mulberry(a) {
+      return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        var t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function collatzUp(n) {
+      var seq = [n];
+      while (n !== 1) { n = (n % 2 === 0) ? n / 2 : 3 * n + 1; seq.push(n); }
+      seq.reverse();
+      return seq;
+    }
+
+    // gradient along each filament: gold root → rose mid → violet tip
+    var stops = [[239, 182, 91], [239, 123, 114], [157, 140, 255]];
+    function pathColor(t, a) {
+      var seg = t < 0.5 ? 0 : 1;
+      var u = (t - seg * 0.5) / 0.5;
+      var c0 = stops[seg], c1 = stops[seg + 1];
+      var r = (c0[0] + (c1[0] - c0[0]) * u) | 0;
+      var g = (c0[1] + (c1[1] - c0[1]) * u) | 0;
+      var b = (c0[2] + (c1[2] - c0[2]) * u) | 0;
+      return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+    }
+
+    function buildGeometry() {
+      var rnd = mulberry(jitterSeed);
+      var seedMax = W < 640 ? 750 : 1300;
+      var bendE = bendBase, bendO = bendBase * 2.05;
+      var raw = [];
+      var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+      maxLen = 0;
+
+      for (var s = 2; s <= seedMax; s++) {
+        var seq = collatzUp(s);
+        if (seq.length > 190) continue;
+        var a = -Math.PI / 2 + (rnd() - 0.5) * 0.05;
+        var x = 0, y = 0;
+        var pts = [0, 0];
+        for (var i = 1; i < seq.length; i++) {
+          if (seq[i] % 2 === 0) a += bendE; else a -= bendO;
+          a += (rnd() - 0.5) * 0.006;
+          x += Math.cos(a); y += Math.sin(a);
+          pts.push(x, y);
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+        raw.push(pts);
+        if (seq.length - 1 > maxLen) maxLen = seq.length - 1;
+      }
+
+      // fit into canvas with margins
+      var mTop = H * 0.07, mBot = H * 0.16, mSide = W * 0.06;
+      var sc = Math.min((W - 2 * mSide) / Math.max(1e-6, maxX - minX),
+                        (H - mTop - mBot) / Math.max(1e-6, maxY - minY));
+      var ox = (W - (maxX - minX) * sc) / 2 - minX * sc;
+      var oy = mTop + ((H - mTop - mBot) - (maxY - minY) * sc) / 2 - minY * sc;
+
+      paths = raw.map(function (pts) {
+        var out = new Float32Array(pts.length);
+        for (var i = 0; i < pts.length; i += 2) {
+          out[i] = pts[i] * sc + ox;
+          out[i + 1] = pts[i + 1] * sc + oy;
+        }
+        return { pts: out, len: pts.length / 2 - 1, cursor: 0 };
+      });
+    }
+
+    function drawSlice(fromStep, toStep) {
+      actx.lineCap = "round";
+      actx.globalCompositeOperation = "lighter";
+      for (var p = 0; p < paths.length; p++) {
+        var path = paths[p];
+        var hi = Math.min(toStep, path.len);
+        for (var i = Math.max(1, fromStep + 1); i <= hi; i++) {
+          var t = i / path.len;
+          var tip = i >= path.len - 1;
+          actx.strokeStyle = pathColor(t, tip ? 0.32 : 0.055);
+          actx.lineWidth = tip ? 1.4 : 1.0;
+          actx.beginPath();
+          actx.moveTo(path.pts[(i - 1) * 2], path.pts[(i - 1) * 2 + 1]);
+          actx.lineTo(path.pts[i * 2], path.pts[i * 2 + 1]);
+          actx.stroke();
+        }
+      }
+    }
+
+    function composite() {
+      var sw = soft.width, sh = soft.height;
+      sctx.setTransform(1, 0, 0, 1, 0, 0);
+      sctx.clearRect(0, 0, sw, sh);
+      sctx.drawImage(acc, 0, 0, acc.width, acc.height, 0, 0, sw, sh);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 0.65;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(soft, 0, 0, sw, sh, 0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "lighter";
+      ctx.drawImage(acc, 0, 0);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    function frame() {
+      var step = Math.max(0.2, maxLen / 520);
+      var next = Math.min(maxLen, front + step);
+      drawSlice(Math.floor(front), Math.floor(next));
+      front = next;
+      composite();
+      if (front < maxLen) {
+        rafId = requestAnimationFrame(frame);
+      } else { done = true; }
+    }
+
+    function start() {
+      cancelAnimationFrame(rafId);
+      actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      actx.clearRect(0, 0, W, H);
+      front = 0; done = false;
+      buildGeometry();
+      if (reduceMotion) {
+        drawSlice(0, maxLen);
+        composite();
+        done = true;
+      } else {
+        rafId = requestAnimationFrame(frame);
+      }
+    }
+
+    function size() {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      var r = canvas.parentElement.getBoundingClientRect();
+      W = Math.round(r.width); H = Math.round(r.height);
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      acc.width = W * dpr; acc.height = H * dpr;
+      soft.width = Math.max(1, Math.round(W / 4));
+      soft.height = Math.max(1, Math.round(H / 4));
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    var resizeT;
+    window.addEventListener("resize", function () {
+      clearTimeout(resizeT);
+      resizeT = setTimeout(function () {
+        var oldW = W;
+        size();
+        if (Math.abs(W - oldW) < 2 && done) { composite(); return; }
+        // redraw fully at new size, skipping the growth animation
+        cancelAnimationFrame(rafId);
+        actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        actx.clearRect(0, 0, W, H);
+        buildGeometry();
+        drawSlice(0, maxLen);
+        composite();
+        done = true;
+      }, 180);
+    });
+
+    document.getElementById("regrow").addEventListener("click", function () {
+      jitterSeed = (Math.random() * 1e9) | 0;
+      start();
+    });
+    var bendT;
+    document.getElementById("bend").addEventListener("input", function (e) {
+      bendBase = parseFloat(e.target.value);
+      clearTimeout(bendT);
+      bendT = setTimeout(start, 120);
+    });
+
+    size();
+    start();
+    return {};
+  })();
+
+  /* ════════════════════════ 2 · THE EXPLORER ════════════════════════ */
+  (function explorer() {
+    var box = document.getElementById("traj-box");
+    var tip = document.getElementById("traj-tip");
+    var input = document.getElementById("seed");
+    var chips = Array.prototype.slice.call(document.querySelectorAll(".chip"));
+    var seq = [];          // BigInt sequence
+    var logs = [];         // float log10 values
+    var svg = null;
+
+    function collatzBig(n) {
+      var out = [n], guard = 0;
+      while (n !== 1n && guard++ < 4000) {
+        n = (n % 2n === 0n) ? n / 2n : 3n * n + 1n;
+        out.push(n);
+      }
+      return out;
+    }
+    function log10Big(v) {
+      var s = v.toString();
+      if (s.length <= 15) return Math.log10(Number(v));
+      return Math.log10(Number(s.slice(0, 15))) + (s.length - 15);
+    }
+
+    function compute(nStr) {
+      var n;
+      try { n = BigInt(nStr); } catch (e) { return; }
+      if (n < 1n) return;
+      seq = collatzBig(n);
+      logs = seq.map(log10Big);
+
+      var peak = seq[0], peakIdx = 0, climbs = 0;
+      for (var i = 0; i < seq.length; i++) {
+        if (seq[i] > peak) { peak = seq[i]; peakIdx = i; }
+        if (i < seq.length - 1 && seq[i] % 2n === 1n) climbs++;
+      }
+      document.getElementById("st-steps").textContent = fmt(seq.length - 1);
+      document.getElementById("st-peak").textContent = peak.toLocaleString("en-US");
+      document.getElementById("st-climbs").textContent = fmt(climbs);
+
+      renderSeqList();
+      drawChart(peakIdx);
+      chips.forEach(function (c) { c.setAttribute("aria-pressed", String(c.dataset.seed === nStr)); });
+    }
+
+    function renderSeqList() {
+      var el = document.getElementById("seq-list");
+      var parts = [];
+      var cap = Math.min(seq.length, 1600);
+      for (var i = 0; i < cap; i++) {
+        var v = seq[i];
+        parts.push(v % 2n === 1n && v !== 1n
+          ? '<span class="odd-v">' + v.toString() + "</span>"
+          : v.toString());
+      }
+      if (seq.length > cap) parts.push("… (" + fmt(seq.length - cap) + " more)");
+      el.innerHTML = parts.join(" → ");
+    }
+
+    var M = { l: 46, r: 18, t: 16, b: 30 };
+    var geom = null;
+
+    function drawChart(peakIdx) {
+      var w = box.clientWidth || 600;
+      var h = Math.max(240, Math.min(340, Math.round(w * 0.42)));
+      var iw = w - M.l - M.r, ih = h - M.t - M.b;
+      var n = logs.length;
+      var maxLog = Math.max.apply(null, logs);
+      var yTop = Math.max(1, Math.ceil(maxLog));
+      var xs = function (i) { return M.l + (n === 1 ? 0 : i / (n - 1) * iw); };
+      var ys = function (lv) { return M.t + (1 - lv / yTop) * ih; };
+      geom = { w: w, h: h, xs: xs, ys: ys, n: n };
+
+      var S = [];
+      S.push('<svg viewBox="0 0 ' + w + " " + h + '" width="' + w + '" height="' + h + '" role="img" aria-label="Hailstone trajectory chart on a logarithmic scale">');
+
+      // y grid at powers of ten
+      var kStep = Math.max(1, Math.ceil(yTop / 6));
+      for (var k = 0; k <= yTop; k += kStep) {
+        var gy = ys(k);
+        S.push('<line x1="' + M.l + '" y1="' + gy + '" x2="' + (w - M.r) + '" y2="' + gy + '" stroke="#232C4E" stroke-width="1"/>');
+        S.push('<text x="' + (M.l - 8) + '" y="' + (gy + 3.5) + '" text-anchor="end" fill="#6B7490" style="font:' + MONO + '">' + (k === 0 ? "1" : "10" + sup(k)) + "</text>");
+      }
+      // x ticks
+      var xt = niceStep(n - 1);
+      for (var t = 0; t <= n - 1; t += xt) {
+        var gx = xs(t);
+        S.push('<text x="' + gx + '" y="' + (h - 8) + '" text-anchor="middle" fill="#6B7490" style="font:' + MONO + '">' + fmt(t) + "</text>");
+      }
+      if (xt === 0) { /* unreachable */ }
+
+      // area + line
+      var pts = [];
+      for (var i = 0; i < n; i++) pts.push(xs(i).toFixed(1) + "," + ys(logs[i]).toFixed(1));
+      S.push('<path d="M' + pts.join(" L") + " L" + xs(n - 1).toFixed(1) + "," + ys(0) + " L" + xs(0).toFixed(1) + "," + ys(0) + ' Z" fill="rgba(192,132,37,0.10)"/>');
+      S.push('<path d="M' + pts.join(" L") + '" fill="none" stroke="' + GOLD + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+
+      // peak marker + label (rose), endpoint marker
+      var px = xs(peakIdx), py = ys(logs[peakIdx]);
+      S.push('<circle cx="' + px + '" cy="' + py + '" r="4" fill="' + ROSE + '" stroke="#121936" stroke-width="2"/>');
+      var peakLabel = seq[peakIdx].toString().length > 12
+        ? "10" + sup(Math.round(logs[peakIdx])) + " ca."
+        : seq[peakIdx].toLocaleString("en-US");
+      var anchor = px > w - 110 ? "end" : (px < M.l + 60 ? "start" : "middle");
+      S.push('<text x="' + px + '" y="' + Math.max(12, py - 10) + '" text-anchor="' + anchor + '" fill="#EAEDF7" style="font:' + MONO + '">' + peakLabel + "</text>");
+      S.push('<circle cx="' + xs(n - 1) + '" cy="' + ys(0) + '" r="3.5" fill="' + GOLD + '"/>');
+
+      // crosshair (hidden until hover)
+      S.push('<line id="tj-cross" x1="0" y1="' + M.t + '" x2="0" y2="' + (M.t + ih) + '" stroke="#6B7490" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>');
+      S.push('<circle id="tj-dot" r="4" fill="' + GOLD + '" stroke="#0A0E1C" stroke-width="2" opacity="0"/>');
+      S.push('<rect id="tj-hit" x="' + M.l + '" y="' + M.t + '" width="' + iw + '" height="' + ih + '" fill="transparent"/>');
+      S.push("</svg>");
+
+      if (svg) svg.remove();
+      box.insertAdjacentHTML("afterbegin", S.join(""));
+      svg = box.querySelector("svg");
+      bindHover();
+    }
+
+    function niceStep(range) {
+      var raw = range / 6;
+      var mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, raw))));
+      var norm = raw / mag;
+      var s = norm >= 5 ? 10 : norm >= 2.5 ? 5 : norm >= 1.5 ? 2 : 1;
+      return Math.max(1, s * mag);
+    }
+
+    function bindHover() {
+      var hit = svg.querySelector("#tj-hit");
+      var cross = svg.querySelector("#tj-cross");
+      var dot = svg.querySelector("#tj-dot");
+      function move(ev) {
+        var r = svg.getBoundingClientRect();
+        var mx = (ev.clientX - r.left) * (geom.w / r.width);
+        var i = Math.round((mx - M.l) / Math.max(1e-6, (geom.w - M.l - M.r)) * (geom.n - 1));
+        i = Math.max(0, Math.min(geom.n - 1, i));
+        var cx = geom.xs(i), cy = geom.ys(logs[i]);
+        cross.setAttribute("x1", cx); cross.setAttribute("x2", cx);
+        cross.setAttribute("opacity", "1");
+        dot.setAttribute("cx", cx); dot.setAttribute("cy", cy);
+        dot.setAttribute("opacity", "1");
+        tip.innerHTML = '<span class="dim">step ' + fmt(i) + "</span> &middot; " + seq[i].toLocaleString("en-US");
+        tip.style.left = (cx / geom.w * 100) + "%";
+        tip.style.top = (cy / geom.h * 100) + "%";
+        tip.style.opacity = "1";
+      }
+      function leave() {
+        cross.setAttribute("opacity", "0");
+        dot.setAttribute("opacity", "0");
+        tip.style.opacity = "0";
+      }
+      hit.addEventListener("mousemove", move);
+      hit.addEventListener("mouseleave", leave);
+    }
+
+    var inputT;
+    input.addEventListener("input", function () {
+      var clean = input.value.replace(/[^\d]/g, "").slice(0, 17);
+      if (clean !== input.value) input.value = clean;
+      clearTimeout(inputT);
+      inputT = setTimeout(function () { if (clean) compute(clean); }, 250);
+    });
+    chips.forEach(function (c) {
+      c.addEventListener("click", function () {
+        input.value = c.dataset.seed;
+        compute(c.dataset.seed);
+      });
+    });
+    var rT;
+    window.addEventListener("resize", function () {
+      clearTimeout(rT);
+      rT = setTimeout(function () { if (seq.length) compute(seq[0].toString()); }, 200);
+    });
+
+    compute("27");
+  })();
+
+  /* ════════════════════════ 3 · THE SCATTER ════════════════════════ */
+  (function scatter() {
+    var NMAX = 10000;
+    var box = document.getElementById("scatter-box");
+    var base = document.getElementById("scatter");
+    var over = document.getElementById("scatter-ov");
+    var tip = document.getElementById("scatter-tip");
+    var bctx = base.getContext("2d");
+    var octx = over.getContext("2d");
+
+    // stopping times, computed live
+    var steps = new Int32Array(NMAX + 1);
+    var maxSteps = 0;
+    for (var n = 1; n <= NMAX; n++) {
+      var v = n, c = 0;
+      while (v !== 1) { v = (v % 2 === 0) ? v / 2 : 3 * v + 1; c++; }
+      steps[n] = c;
+      if (c > maxSteps) maxSteps = c;
+    }
+    // record holders
+    var records = [];
+    var best = -1;
+    for (n = 1; n <= NMAX; n++) {
+      if (steps[n] > best) { best = steps[n]; records.push(n); }
+    }
+    var notable = records.filter(function (r) { return r > 2; });
+
+    // records table (also the accessible/table view of the figure)
+    (function () {
+      var tbl = document.getElementById("records-table");
+      var shown = notable.slice(-10);
+      var h1 = "<tr>" + shown.map(function (r) { return "<th>" + fmt(r) + "</th>"; }).join("") + "</tr>";
+      var h2 = "<tr>" + shown.map(function (r) { return "<td>" + fmt(steps[r]) + " steps</td>"; }).join("") + "</tr>";
+      tbl.innerHTML = h1 + h2;
+    })();
+
+    var M = { l: 46, r: 14, t: 14, b: 30 };
+    var W = 0, H = 0, dpr = 1;
+    var yTop = Math.ceil(maxSteps / 20) * 20;
+
+    function xs(n) { return M.l + n / NMAX * (W - M.l - M.r); }
+    function ys(s) { return M.t + (1 - s / yTop) * (H - M.t - M.b); }
+
+    function draw() {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = box.clientWidth || 600;
+      H = Math.max(260, Math.min(360, Math.round(W * 0.4)));
+      [base, over].forEach(function (cv) {
+        cv.width = W * dpr; cv.height = H * dpr;
+        cv.style.height = H + "px";
+      });
+      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bctx.clearRect(0, 0, W, H);
+
+      // grid + axes
+      bctx.font = MONO;
+      bctx.fillStyle = "#6B7490";
+      bctx.strokeStyle = "#232C4E";
+      bctx.lineWidth = 1;
+      for (var s = 0; s <= yTop; s += 50) {
+        var gy = ys(s);
+        bctx.beginPath(); bctx.moveTo(M.l, gy); bctx.lineTo(W - M.r, gy); bctx.stroke();
+        bctx.textAlign = "right";
+        bctx.fillText(String(s), M.l - 8, gy + 3.5);
+      }
+      bctx.textAlign = "center";
+      for (var x = 0; x <= NMAX; x += 2000) {
+        bctx.fillText(fmt(x), xs(x), H - 8);
+      }
+      bctx.save();
+      bctx.translate(12, (M.t + H - M.b) / 2);
+      bctx.rotate(-Math.PI / 2);
+      bctx.fillText("steps to 1", 0, 0);
+      bctx.restore();
+
+      // dots
+      bctx.fillStyle = "rgba(192,132,37,0.5)";
+      for (var i = 1; i <= NMAX; i++) {
+        bctx.fillRect(xs(i) - 0.8, ys(steps[i]) - 0.8, 1.6, 1.6);
+      }
+      // record holders in rose
+      bctx.fillStyle = ROSE;
+      notable.forEach(function (r) {
+        bctx.beginPath();
+        bctx.arc(xs(r), ys(steps[r]), 3, 0, Math.PI * 2);
+        bctx.fill();
+      });
+      // label top three records
+      bctx.fillStyle = "#EAEDF7";
+      bctx.textAlign = "left";
+      notable.slice(-3).forEach(function (r) {
+        var lx = xs(r) + 7, lyy = ys(steps[r]) + 3;
+        if (lx > W - 90) { bctx.textAlign = "right"; lx = xs(r) - 7; }
+        bctx.fillText(fmt(r) + " · " + steps[r], lx, lyy);
+        bctx.textAlign = "left";
+      });
+    }
+
+    function nearest(mx, my) {
+      var bi = -1, bd = 20 * 20;
+      for (var i = 1; i <= NMAX; i++) {
+        var dx = xs(i) - mx, dy = ys(steps[i]) - my;
+        var d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; bi = i; }
+      }
+      return bi;
+    }
+
+    over.addEventListener("mousemove", function (ev) {
+      var r = over.getBoundingClientRect();
+      var mx = ev.clientX - r.left, my = ev.clientY - r.top;
+      var i = nearest(mx, my);
+      octx.clearRect(0, 0, W, H);
+      if (i < 0) { tip.style.opacity = "0"; return; }
+      octx.strokeStyle = "#EAEDF7";
+      octx.lineWidth = 1.5;
+      octx.beginPath();
+      octx.arc(xs(i), ys(steps[i]), 5, 0, Math.PI * 2);
+      octx.stroke();
+      tip.innerHTML = '<span class="dim">n = </span>' + fmt(i) + ' <span class="dim">&middot;</span> ' + fmt(steps[i]) + ' <span class="dim">steps</span>';
+      tip.style.left = (xs(i) / W * 100) + "%";
+      tip.style.top = (ys(steps[i]) / H * 100) + "%";
+      tip.style.opacity = "1";
+    });
+    over.addEventListener("mouseleave", function () {
+      octx.clearRect(0, 0, W, H);
+      tip.style.opacity = "0";
+    });
+
+    var rT;
+    window.addEventListener("resize", function () {
+      clearTimeout(rT);
+      rT = setTimeout(draw, 200);
+    });
+    draw();
+  })();
+
+  /* ════════════════════════ 4 · REVEALS ════════════════════════ */
+  (function () {
+    var els = document.querySelectorAll(".reveal");
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      els.forEach ? els.forEach(function (e) { e.classList.add("in"); })
+                  : Array.prototype.forEach.call(els, function (e) { e.classList.add("in"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.12 });
+    Array.prototype.forEach.call(els, function (e) { io.observe(e); });
+  })();
+})();
+</script>
+
+</body>
+</html>
